@@ -1,0 +1,30 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    command: air
+    environment:
+      DATABASE_URL: postgres://postgres:password@db:5432/postgres
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+
+  db:
+    image: postgres:17.4-alpine3.21
+    restart: always
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - ./init.sql/:/docker-entrypoint-initdb.d/init.sql
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - 54321:5432
+
+volumes:
+  db_data:
