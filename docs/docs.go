@@ -14,17 +14,140 @@ const docTemplate = `{
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
-    "paths": {}
+    "paths": {
+        "/wallet": {
+            "post": {
+                "description": "Создает новый кошелек или обновляет существующий в зависимости от операции (DEPOSIT или WITHDRAW).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "wallet"
+                ],
+                "summary": "Создание или обновление кошелька",
+                "operationId": "handleWallet",
+                "parameters": [
+                    {
+                        "description": "Wallet",
+                        "name": "wallet",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.WalletRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.Wallet"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid operation type",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/wallets/{walletId}": {
+            "get": {
+                "description": "Получает информацию о кошельке по его ID.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "wallet"
+                ],
+                "summary": "Получение информации о кошельке",
+                "operationId": "handleGetWallet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Wallet ID",
+                        "name": "walletId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/main.Wallet"
+                        }
+                    },
+                    "404": {
+                        "description": "Wallet not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "main.OperationType": {
+            "type": "string",
+            "enum": [
+                "DEPOSIT",
+                "WITHDRAW"
+            ],
+            "x-enum-varnames": [
+                "Deposit",
+                "Withdraw"
+            ]
+        },
+        "main.Wallet": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "type": "number"
+                },
+                "walletId": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.WalletRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "description": "Сумма для операции",
+                    "type": "number"
+                },
+                "operationType": {
+                    "description": "Тип операции: DEPOSIT или WITHDRAW",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/main.OperationType"
+                        }
+                    ]
+                },
+                "walletId": {
+                    "description": "ID кошелька",
+                    "type": "string"
+                }
+            }
+        }
+    }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
-	Host:             "",
-	BasePath:         "",
+	Version:          "1.0",
+	Host:             "localhost:8080",
+	BasePath:         "/api/v1",
 	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	Title:            "Wallet API",
+	Description:      "API для управления кошельками",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

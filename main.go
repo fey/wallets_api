@@ -1,14 +1,28 @@
 package main
 
 import (
-  "encoding/json"
-  "fmt"
-  "log"
-  "net/http"
-  "sync"
-  "github.com/swaggo/http-swagger"
-  _ "github.com/fey/wallets_api/docs"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"sync"
+
+	_ "github.com/fey/wallets_api/docs"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
+
+type OperationType string
+
+const (
+    Deposit  OperationType = "DEPOSIT"
+    Withdraw OperationType = "WITHDRAW"
+)
+
+type WalletRequest struct {
+  WalletID     string  `json:"walletId"`      // ID кошелька
+  OperationType OperationType  `json:"operationType"` // Тип операции: DEPOSIT или WITHDRAW
+  Amount       float64 `json:"amount"`        // Сумма для операции
+}
 
 type Wallet struct {
   ID      string  `json:"walletId"`
@@ -19,17 +33,16 @@ var (
   wallets = make(map[string]*Wallet)
   mu sync.Mutex
 )
-// @title Wallet API
-// @version 1.0
-// @description API для управления кошельками
-// @host localhost:8080
-// @BasePath /api/v1
+//	@title			Wallet API
+//	@version		1.0
+//	@description	API для управления кошельками
+//	@host			localhost:8080
+//	@BasePath		/api/v1
 func main() {
-  http.HandleFunc("/api/v1/wallet", handleWallet)
-  http.HandleFunc("/api/v1/wallets/", handleGetWallet)
-
-  // Swagger UI
   http.Handle("/swagger/", httpSwagger.WrapHandler)
+
+  http.HandleFunc("/api/v1/wallet", HandleWallet)
+  http.HandleFunc("/api/v1/wallets/", handleGetWallet)
 
   fmt.Println("Starting server on :8080...")
   if err := http.ListenAndServe(":8080", nil); err != nil {
@@ -37,19 +50,20 @@ func main() {
   }
 }
 
-// @Summary Создание или обновление кошелька
-// @Description Создает новый кошелек или обновляет существующий
-// @Accept json
-// @Produce json
-// @Param wallet body struct {
-//     WalletID     string  `json:"walletId"`
-//     OperationType string  `json:"operationType"`
-//     Amount       float64 `json:"amount"`
-// } true "Wallet"
-// @Success 200 {object} Wallet
-// @Failure 400 {string} string "Invalid request"
-// @Router /wallet [post]
-func handleWallet(w http.ResponseWriter, r *http.Request) {
+// handleWallet обрабатывает создание или обновление кошелька.
+//	@Summary		Создание или обновление кошелька
+//	@Tags			wallet
+//	@ID				handleWallet
+//	@Description	Создает новый кошелек или обновляет существующий в зависимости от операции (DEPOSIT или WITHDRAW).
+//	@Accept			json
+//	@Produce		json
+//	@Param			wallet	body		WalletRequest	true	"Wallet"
+//	@Success		200		{object}	Wallet
+//	@Failure		400		{string}	string	"Invalid request"
+//	@Failure		400		{string}	string	"Insufficient funds"
+//	@Failure		400		{string}	string	"Invalid operation type"
+//	@Router			/wallet [post]
+func HandleWallet(w http.ResponseWriter, r *http.Request) {
   if r.Method == http.MethodPost {
       var req struct {
           WalletID     string  `json:"walletId"`
@@ -72,9 +86,9 @@ func handleWallet(w http.ResponseWriter, r *http.Request) {
       }
 
       switch req.OperationType {
-      case "DEPOSIT":
+      case string(Deposit):
           wallet.Balance += req.Amount
-      case "WITHDRAW":
+      case string(Withdraw):
           if wallet.Balance < req.Amount {
               http.Error(w, "Insufficient funds", http.StatusBadRequest)
               return
@@ -92,13 +106,16 @@ func handleWallet(w http.ResponseWriter, r *http.Request) {
   }
 }
 
-// @Summary Получение информации о кошельке
-// @Description Получает информацию о кошельке по его ID
-// @Produce json
-// @Param walletId path string true "Wallet ID"
-// @Success 200 {object} Wallet
-// @Failure 404 {string} string "Wallet not found"
-// @Router /wallets/{walletId} [get]
+// handleGetWallet обрабатывает запрос на получение информации о кошельке по его ID.
+//	@Summary		Получение информации о кошельке
+//	@Description	Получает информацию о кошельке по его ID.
+//	@Tags			wallet
+//	@ID				handleGetWallet
+//	@Produce		json
+//	@Param			walletId	path		string	true	"Wallet ID"
+//	@Success		200			{object}	Wallet
+//	@Failure		404			{string}	string	"Wallet not found"
+//	@Router			/wallets/{walletId} [get]
 func handleGetWallet(w http.ResponseWriter, r *http.Request) {
   walletID := r.URL.Path[len("/api/v1/wallets/"):]
 
