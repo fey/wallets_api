@@ -8,7 +8,7 @@ test:
 	go test
 
 build:
-	go build -o wallets_api
+	go build -o wallets_api .
 
 compose-start:
 	docker compose up --abort-on-container-failure
@@ -27,3 +27,12 @@ compose-logs:
 
 compose-test:
 	docker compose run --rm app make test
+
+compose-production-build:
+	docker compose -f docker-compose.production.yml build
+
+compose-production-start:
+	docker compose -f docker-compose.production.yml up --abort-on-container-failure --build
+
+docker-start:
+	docker run --rm --name wallets_api -p 8080:8080 fey/wallets_api
