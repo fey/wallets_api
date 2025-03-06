@@ -31,7 +31,7 @@ type Wallet struct {
 
 var (
 	wallets = make(map[string]*Wallet)
-	mu      sync.Mutex
+	mu sync.Mutex
 )
 
 // @title			Wallet API
