@@ -76,32 +76,36 @@ func main() {
 
 		return c.SendString(greeting)
 	})
-	app.Get("/api/v1/wallets/:uuid", func(ctx *fiber.Ctx) error {
-		var err error
-		uuid := ctx.Params("uuid", "")
-		if uuid == "" {
+	app.Get("/api/v1/wallets/:uuid", GetWalletHandler)
+	app.Post("/api/v1/wallets", WalletOperationHandler)
+}
+
+func GetWalletHandler (ctx *fiber.Ctx) error {
+	uuid := ctx.Params("uuid", "")
+	if uuid == "" {
+		return ctx.SendStatus(fiber.StatusNotFound)
+	}
+
+	var wallet Wallet
+	row := db.QueryRow("SELECT id, balance FROM wallets WHERE id = $1", uuid)
+
+	err := row.Scan(&wallet.WalletId, &wallet.Balance)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
 			return ctx.SendStatus(fiber.StatusNotFound)
 		}
+		return ctx.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	}
 
-		var wallet Wallet
-		row := db.QueryRow("SELECT id, balance FROM wallets WHERE id = $1", uuid)
+	jsonBytes, _ := json.Marshal(&wallet)
 
-		err = row.Scan(&wallet.WalletId, &wallet.Balance)
+	return ctx.SendString(string(jsonBytes))
 
-		if err != nil {
-			if err == sql.ErrNoRows {
-				return ctx.SendStatus(fiber.StatusNotFound)
-			}
-			return ctx.Status(fiber.StatusInternalServerError).SendString(err.Error())
-		}
+	// return c.SendString(uuid)
+}
 
-		jsonBytes, _ := json.Marshal(&wallet)
-
-		return ctx.SendString(string(jsonBytes))
-
-		// return c.SendString(uuid)
-	})
-	app.Post("/api/v1/wallets", func(ctx *fiber.Ctx) error {
+func WalletOperationHandler(ctx *fiber.Ctx) error {
 		var req WalletOperationRequest
 
 		if err := ctx.BodyParser(&req); err != nil {
