@@ -54,11 +54,11 @@ func connect() error {
 	return nil
 }
 
-// @title			Wallet API
-// @version		1.0
-// @description	API для управления кошельками
-// @host			localhost:8080
-// @BasePath		/api/v1
+//	@title			Wallet API
+//	@version		1.0
+//	@description	API для управления кошельками
+//	@host			localhost:8080
+//	@BasePath		/api/v1
 func main() {
 	if err := connect(); err != nil {
 		log.Fatal(err)
@@ -74,6 +74,13 @@ func main() {
 	log.Fatal(app.Listen(":8080"))
 }
 
+//	@Summary		Root endpoint
+//	@Description	Returns a greeting message
+//	@Tags			root
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{string}	string	"Hello, World!"
+//	@Router			/ [get]
 func RootHandler(c *fiber.Ctx) error {
 
 		var greeting string
@@ -85,6 +92,16 @@ func RootHandler(c *fiber.Ctx) error {
 		return c.SendString(greeting)
 	}
 
+//	@Summary		Get wallet by UUID
+//	@Description	Retrieve a wallet's details using its UUID
+//	@Tags			wallets
+//	@Accept			json
+//	@Produce		json
+//	@Param			uuid	path		string	true	"Wallet UUID"
+//	@Success		200		{object}	Wallet	"Wallet details"
+//	@Failure		404		{object}	string	"Wallet not found"
+//	@Failure		500		{object}	string	"Internal server error"
+//	@Router			/api/v1/wallets/{uuid} [get]
 func GetWalletHandler(ctx *fiber.Ctx) error {
 	uuid := ctx.Params("uuid", "")
 	if uuid == "" {
@@ -108,6 +125,17 @@ func GetWalletHandler(ctx *fiber.Ctx) error {
 	return ctx.SendString(string(jsonBytes))
 }
 
+//	@Summary		Perform wallet operation
+//	@Description	Deposit or withdraw an amount from a wallet
+//	@Tags			wallets
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		WalletOperationRequest	true	"Wallet operation request"
+//	@Success		200		{object}	Wallet					"Updated wallet details"
+//	@Failure		422		{object}	[]ValidationError		"Validation errors"
+//	@Failure		404		{object}	string					"Wallet not found"
+//	@Failure		500		{object}	string					"Internal server error"
+//	@Router			/api/v1/wallets [post]
 func WalletOperationHandler(ctx *fiber.Ctx) error {
 	var req WalletOperationRequest
 

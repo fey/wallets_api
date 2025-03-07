@@ -15,9 +15,9 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/wallet": {
-            "post": {
-                "description": "Создает новый кошелек или обновляет существующий в зависимости от операции (DEPOSIT или WITHDRAW).",
+        "/": {
+            "get": {
+                "description": "Returns a greeting message",
                 "consumes": [
                     "application/json"
                 ],
@@ -25,30 +25,12 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "wallet"
+                    "root"
                 ],
-                "summary": "Создание или обновление кошелька",
-                "operationId": "handleWallet",
-                "parameters": [
-                    {
-                        "description": "Wallet",
-                        "name": "wallet",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/main.WalletRequest"
-                        }
-                    }
-                ],
+                "summary": "Root endpoint",
                 "responses": {
                     "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/main.Wallet"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid operation type",
+                        "description": "Hello, World!",
                         "schema": {
                             "type": "string"
                         }
@@ -56,35 +38,98 @@ const docTemplate = `{
                 }
             }
         },
-        "/wallets/{walletId}": {
-            "get": {
-                "description": "Получает информацию о кошельке по его ID.",
+        "/api/v1/wallets": {
+            "post": {
+                "description": "Deposit or withdraw an amount from a wallet",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "wallet"
+                    "wallets"
                 ],
-                "summary": "Получение информации о кошельке",
-                "operationId": "handleGetWallet",
+                "summary": "Perform wallet operation",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Wallet ID",
-                        "name": "walletId",
-                        "in": "path",
-                        "required": true
+                        "description": "Wallet operation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.WalletOperationRequest"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Updated wallet details",
                         "schema": {
                             "$ref": "#/definitions/main.Wallet"
                         }
                     },
                     "404": {
                         "description": "Wallet not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "422": {
+                        "description": "Validation errors",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.ValidationError"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/wallets/{uuid}": {
+            "get": {
+                "description": "Retrieve a wallet's details using its UUID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "wallets"
+                ],
+                "summary": "Get wallet by UUID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Wallet UUID",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Wallet details",
+                        "schema": {
+                            "$ref": "#/definitions/main.Wallet"
+                        }
+                    },
+                    "404": {
+                        "description": "Wallet not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "type": "string"
                         }
@@ -105,26 +150,48 @@ const docTemplate = `{
                 "Withdraw"
             ]
         },
+        "main.ValidationError": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
         "main.Wallet": {
             "type": "object",
             "properties": {
                 "balance": {
                     "type": "number"
                 },
-                "walletId": {
+                "wallet_id": {
                     "type": "string"
                 }
             }
         },
-        "main.WalletRequest": {
+        "main.WalletOperationRequest": {
             "type": "object",
+            "required": [
+                "amount",
+                "operationType",
+                "walletId"
+            ],
             "properties": {
                 "amount": {
-                    "description": "Сумма для операции",
-                    "type": "number"
+                    "type": "number",
+                    "minimum": 0
                 },
                 "operationType": {
-                    "description": "Тип операции: DEPOSIT или WITHDRAW",
+                    "enum": [
+                        "DEPOSIT",
+                        "WITHDRAW"
+                    ],
                     "allOf": [
                         {
                             "$ref": "#/definitions/main.OperationType"
@@ -132,7 +199,6 @@ const docTemplate = `{
                     ]
                 },
                 "walletId": {
-                    "description": "ID кошелька",
                     "type": "string"
                 }
             }

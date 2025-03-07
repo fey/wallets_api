@@ -8,25 +8,39 @@ definitions:
     x-enum-varnames:
     - Deposit
     - Withdraw
+  main.ValidationError:
+    properties:
+      field:
+        type: string
+      tag:
+        type: string
+      value:
+        type: string
+    type: object
   main.Wallet:
     properties:
       balance:
         type: number
-      walletId:
+      wallet_id:
         type: string
     type: object
-  main.WalletRequest:
+  main.WalletOperationRequest:
     properties:
       amount:
-        description: Сумма для операции
+        minimum: 0
         type: number
       operationType:
         allOf:
         - $ref: '#/definitions/main.OperationType'
-        description: 'Тип операции: DEPOSIT или WITHDRAW'
+        enum:
+        - DEPOSIT
+        - WITHDRAW
       walletId:
-        description: ID кошелька
         type: string
+    required:
+    - amount
+    - operationType
+    - walletId
     type: object
 host: localhost:8080
 info:
@@ -35,56 +49,84 @@ info:
   title: Wallet API
   version: "1.0"
 paths:
-  /wallet:
+  /:
+    get:
+      consumes:
+      - application/json
+      description: Returns a greeting message
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Hello, World!
+          schema:
+            type: string
+      summary: Root endpoint
+      tags:
+      - root
+  /api/v1/wallets:
     post:
       consumes:
       - application/json
-      description: Создает новый кошелек или обновляет существующий в зависимости
-        от операции (DEPOSIT или WITHDRAW).
-      operationId: handleWallet
+      description: Deposit or withdraw an amount from a wallet
       parameters:
-      - description: Wallet
+      - description: Wallet operation request
         in: body
-        name: wallet
+        name: request
         required: true
         schema:
-          $ref: '#/definitions/main.WalletRequest'
+          $ref: '#/definitions/main.WalletOperationRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.Wallet'
-        "400":
-          description: Invalid operation type
-          schema:
-            type: string
-      summary: Создание или обновление кошелька
-      tags:
-      - wallet
-  /wallets/{walletId}:
-    get:
-      description: Получает информацию о кошельке по его ID.
-      operationId: handleGetWallet
-      parameters:
-      - description: Wallet ID
-        in: path
-        name: walletId
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
+          description: Updated wallet details
           schema:
             $ref: '#/definitions/main.Wallet'
         "404":
           description: Wallet not found
           schema:
             type: string
-      summary: Получение информации о кошельке
+        "422":
+          description: Validation errors
+          schema:
+            items:
+              $ref: '#/definitions/main.ValidationError'
+            type: array
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Perform wallet operation
       tags:
-      - wallet
+      - wallets
+  /api/v1/wallets/{uuid}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a wallet's details using its UUID
+      parameters:
+      - description: Wallet UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Wallet details
+          schema:
+            $ref: '#/definitions/main.Wallet'
+        "404":
+          description: Wallet not found
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Get wallet by UUID
+      tags:
+      - wallets
 swagger: "2.0"
