@@ -8,27 +8,50 @@ import (
 	"os"
 
 	_ "github.com/fey/wallets_api/docs"
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
 	_ "github.com/lib/pq"
 )
 
-type OperationType string
+type (
+	OperationType string
+
+	WalletOperationRequest struct {
+		WalletId      string        `json:"walletId" validate:"required,uuid"`
+		OperationType OperationType `json:"operationType" validate:"required,oneof=DEPOSIT WITHDRAW"`
+		Amount        float64       `json:"amount" validate:"required,gte=0"`
+	}
+	Wallet struct {
+		WalletId string  `json:"wallet_id"`
+		Balance  float64 `json:"balance"`
+	}
+
+	ValidationError struct {
+		Field string
+		Tag   string
+		Value string
+	}
+)
 
 const (
 	Deposit  OperationType = "DEPOSIT"
 	Withdraw OperationType = "WITHDRAW"
 )
 
-type WalletOperationRequest struct {
-	WalletId    string        `json:"walletId"`
-	OperationType OperationType `json:"operationType"`
-	Amount        float64       `json:"amount"`
-}
+var db *sql.DB
 
-type Wallet struct {
-	WalletId      string  `json:"walletId"`
-	Balance float64 `json:"balance"`
+func connect() error {
+	var err error
+	db, err = sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	if err != nil {
+		return err
+	}
+
+	if err = db.Ping(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // @title			Wallet API
@@ -37,70 +60,99 @@ type Wallet struct {
 // @host			localhost:8080
 // @BasePath		/api/v1
 func main() {
-	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
-
-	if err != nil {
+	if err := connect(); err != nil {
 		log.Fatal(err)
 	}
-
 	defer db.Close()
-	err = db.Ping()
-
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("Successfully connected to db!")
 
 	app := fiber.New()
 	app.Get("/", func(c *fiber.Ctx) error {
+
 		var greeting string
 		err := db.QueryRow("SELECT 'Hello, World!'").Scan(&greeting)
 		if err != nil {
 			return err
 		}
+
 		return c.SendString(greeting)
 	})
-	app.Get("/api/v1/wallets/:uuid", GetWalletHandler)
-	app.Post("api/v1/wallets", PostWalletHandler)
-	app.Get("/swagger/*", swagger.HandlerDefault)
-	log.Fatal(app.Listen(":8080"))
-}
+	app.Get("/api/v1/wallets/:uuid", func (ctx *fiber.Ctx) error {
+	var err error
+	uuid := ctx.Params("uuid", "")
+	if uuid == "" {
+		return ctx.SendStatus(fiber.StatusNotFound)
+	}
 
-func GetWalletHandler(c *fiber.Ctx) error {
-	uuid := c.Params("uuid", "")
+	var wallet Wallet
+	row := db.QueryRow("SELECT id, balance FROM wallets WHERE id = $1", uuid)
 
-	wallet := Wallet{
-		WalletId: uuid,
-		Balance: 500.0,
+	err = row.Scan(&wallet.WalletId, &wallet.Balance)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return ctx.SendStatus(fiber.StatusNotFound)
+		}
+		return ctx.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
 
 	jsonBytes, _ := json.Marshal(&wallet)
 
-	return c.SendString(string(jsonBytes))
-
-	// if uuid == "" {
-	// 	return c.SendStatus(fiber.StatusNotFound)
-	// }
+	return ctx.SendString(string(jsonBytes))
 
 	// return c.SendString(uuid)
-}
+})
+	app.Post("/api/v1/wallets", func (ctx *fiber.Ctx) error {
+	var req WalletOperationRequest
 
-func PostWalletHandler(c *fiber.Ctx) error {
-	var request WalletOperationRequest
-
-	if err := c.BodyParser(&request); err != nil {
+	if err := ctx.BodyParser(&req); err != nil {
 		return fmt.Errorf("body parser: %w", err)
 	}
 
-	fmt.Println(request.WalletId)
+	errs := validateWalletOperation(req)
 
-	wallet := Wallet{
-		WalletId: request.WalletId,
-		Balance: 500,
+	if (errs != nil) {
+		return ctx.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"errors": errs,
+		})
 	}
 
-	c.Status(fiber.StatusCreated)
+	var wallet Wallet
+	row := db.QueryRow("SELECT id, balance FROM wallets WHERE id = $1", req.WalletId)
 
-	return c.JSON(wallet)
+	err := row.Scan(&wallet.WalletId, &wallet.Balance)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return ctx.SendStatus(fiber.StatusNotFound)
+		}
+		return ctx.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	}
+
+	return ctx.JSON(wallet)
+})
+	app.Get("/swagger/*", swagger.HandlerDefault)
+	log.Fatal(app.Listen(":8080"))
+}
+
+
+
+
+func validateWalletOperation(req WalletOperationRequest) []*ValidationError {
+	validate := validator.New(validator.WithRequiredStructEnabled())
+
+    var errors []*ValidationError
+
+    err := validate.Struct(req)
+    if err != nil {
+        for _, err := range err.(validator.ValidationErrors) {
+            var el ValidationError
+            el.Field = err.Field()
+            el.Tag = err.Tag()
+            el.Value = err.Param()
+            errors = append(errors, &el)
+        }
+        return errors;
+    }
+
+		return nil
 }
