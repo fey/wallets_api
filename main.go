@@ -1,14 +1,16 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
-	"sync"
+	"os"
 
 	_ "github.com/fey/wallets_api/docs"
-	httpSwagger "github.com/swaggo/http-swagger"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/swagger"
+	_ "github.com/lib/pq"
 )
 
 type OperationType string
@@ -18,21 +20,16 @@ const (
 	Withdraw OperationType = "WITHDRAW"
 )
 
-type WalletRequest struct {
-	WalletID      string        `json:"walletId"`      // ID кошелька
-	OperationType OperationType `json:"operationType"` // Тип операции: DEPOSIT или WITHDRAW
-	Amount        float64       `json:"amount"`        // Сумма для операции
+type WalletOperationRequest struct {
+	WalletId    string        `json:"walletId"`
+	OperationType OperationType `json:"operationType"`
+	Amount        float64       `json:"amount"`
 }
 
 type Wallet struct {
-	ID      string  `json:"walletId"`
+	WalletId      string  `json:"walletId"`
 	Balance float64 `json:"balance"`
 }
-
-var (
-	wallets = make(map[string]*Wallet)
-	mu sync.Mutex
-)
 
 // @title			Wallet API
 // @version		1.0
@@ -40,96 +37,70 @@ var (
 // @host			localhost:8080
 // @BasePath		/api/v1
 func main() {
-	http.Handle("/swagger/", httpSwagger.WrapHandler)
-	http.HandleFunc("/api/v1/wallet", HandleWallet)
-	http.HandleFunc("/api/v1/wallets/", handleGetWallet)
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
 
-	fmt.Println("Starting server on :8080...")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err != nil {
 		log.Fatal(err)
 	}
-}
 
-// handleWallet обрабатывает создание или обновление кошелька.
-//
-//	@Summary		Создание или обновление кошелька
-//	@Tags			wallet
-//	@ID				handleWallet
-//	@Description	Создает новый кошелек или обновляет существующий в зависимости от операции (DEPOSIT или WITHDRAW).
-//	@Accept			json
-//	@Produce		json
-//	@Param			wallet	body		WalletRequest	true	"Wallet"
-//	@Success		200		{object}	Wallet
-//	@Failure		400		{string}	string	"Invalid request"
-//	@Failure		400		{string}	string	"Insufficient funds"
-//	@Failure		400		{string}	string	"Invalid operation type"
-//	@Router			/wallet [post]
-func HandleWallet(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		var req struct {
-			WalletID      string  `json:"walletId"`
-			OperationType string  `json:"operationType"`
-			Amount        float64 `json:"amount"`
-		}
+	defer db.Close()
+	err = db.Ping()
 
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request", http.StatusBadRequest)
-			return
-		}
-
-		mu.Lock()
-		defer mu.Unlock()
-
-		wallet, exists := wallets[req.WalletID]
-		if !exists {
-			wallet = &Wallet{ID: req.WalletID, Balance: 0}
-			wallets[req.WalletID] = wallet
-		}
-
-		switch req.OperationType {
-		case string(Deposit):
-			wallet.Balance += req.Amount
-		case string(Withdraw):
-			if wallet.Balance < req.Amount {
-				http.Error(w, "Insufficient funds", http.StatusBadRequest)
-				return
-			}
-			wallet.Balance -= req.Amount
-		default:
-			http.Error(w, "Invalid operation type", http.StatusBadRequest)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(wallet)
-	} else {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-	}
-}
-
-// handleGetWallet обрабатывает запрос на получение информации о кошельке по его ID.
-//
-//	@Summary		Получение информации о кошельке
-//	@Description	Получает информацию о кошельке по его ID.
-//	@Tags			wallet
-//	@ID				handleGetWallet
-//	@Produce		json
-//	@Param			walletId	path		string	true	"Wallet ID"
-//	@Success		200			{object}	Wallet
-//	@Failure		404			{string}	string	"Wallet not found"
-//	@Router			/wallets/{walletId} [get]
-func handleGetWallet(w http.ResponseWriter, r *http.Request) {
-	walletID := r.URL.Path[len("/api/v1/wallets/"):]
-
-	mu.Lock()
-	defer mu.Unlock()
-
-	wallet, exists := wallets[walletID]
-	if !exists {
-		http.Error(w, "Wallet not found", http.StatusNotFound)
-		return
+	if err != nil {
+		panic(err)
 	}
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(wallet)
+	fmt.Println("Successfully connected to db!")
+
+	app := fiber.New()
+	app.Get("/", func(c *fiber.Ctx) error {
+		var greeting string
+		err := db.QueryRow("SELECT 'Hello, World!'").Scan(&greeting)
+		if err != nil {
+			return err
+		}
+		return c.SendString(greeting)
+	})
+	app.Get("/api/v1/wallets/:uuid", GetWalletHandler)
+	app.Post("api/v1/wallets", PostWalletHandler)
+	app.Get("/swagger/*", swagger.HandlerDefault)
+	log.Fatal(app.Listen(":8080"))
+}
+
+func GetWalletHandler(c *fiber.Ctx) error {
+	uuid := c.Params("uuid", "")
+
+	wallet := Wallet{
+		WalletId: uuid,
+		Balance: 500.0,
+	}
+
+	jsonBytes, _ := json.Marshal(&wallet)
+
+	return c.SendString(string(jsonBytes))
+
+	// if uuid == "" {
+	// 	return c.SendStatus(fiber.StatusNotFound)
+	// }
+
+	// return c.SendString(uuid)
+}
+
+func PostWalletHandler(c *fiber.Ctx) error {
+	var request WalletOperationRequest
+
+	if err := c.BodyParser(&request); err != nil {
+		return fmt.Errorf("body parser: %w", err)
+	}
+
+	fmt.Println(request.WalletId)
+
+	wallet := Wallet{
+		WalletId: request.WalletId,
+		Balance: 500,
+	}
+
+	c.Status(fiber.StatusCreated)
+
+	return c.JSON(wallet)
 }

@@ -10,34 +10,34 @@ import (
 
 func TestHandleWallet(t *testing.T) {
 	tests := []struct {
-		name           string
-		requestBody    WalletRequest
-		expectedStatus int
+		name            string
+		requestBody     WalletOperationRequest
+		expectedStatus  int
 		expectedBalance float64
 	}{
 		{
 			name: "Deposit money",
-			requestBody: WalletRequest{
+			requestBody: WalletOperationRequest{
 				WalletID:      "wallet1",
 				OperationType: Deposit,
 				Amount:        100.0,
 			},
-			expectedStatus: http.StatusOK,
+			expectedStatus:  http.StatusOK,
 			expectedBalance: 100.0,
 		},
 		{
 			name: "Withdraw money",
-			requestBody: WalletRequest{
+			requestBody: WalletOperationRequest{
 				WalletID:      "wallet1",
 				OperationType: Withdraw,
 				Amount:        50.0,
 			},
-			expectedStatus: http.StatusOK,
+			expectedStatus:  http.StatusOK,
 			expectedBalance: 50.0,
 		},
 		{
 			name: "Withdraw more than balance",
-			requestBody: WalletRequest{
+			requestBody: WalletOperationRequest{
 				WalletID:      "wallet1",
 				OperationType: Withdraw,
 				Amount:        100.0,
@@ -46,7 +46,7 @@ func TestHandleWallet(t *testing.T) {
 		},
 		{
 			name: "Invalid operation type",
-			requestBody: WalletRequest{
+			requestBody: WalletOperationRequest{
 				WalletID:      "wallet1",
 				OperationType: "INVALID",
 				Amount:        50.0,
@@ -90,20 +90,20 @@ func TestHandleGetWallet(t *testing.T) {
 	wallets["wallet1"] = &Wallet{ID: "wallet1", Balance: 100.0}
 
 	tests := []struct {
-		name           string
-		walletID      string
-		expectedStatus int
+		name            string
+		walletID        string
+		expectedStatus  int
 		expectedBalance float64
 	}{
 		{
-			name: "Get existing wallet",
-			walletID: "wallet1",
-			expectedStatus: http.StatusOK,
+			name:            "Get existing wallet",
+			walletID:        "wallet1",
+			expectedStatus:  http.StatusOK,
 			expectedBalance: 100.0,
 		},
 		{
-			name: "Get non-existing wallet",
-			walletID: "wallet2",
+			name:           "Get non-existing wallet",
+			walletID:       "wallet2",
 			expectedStatus: http.StatusNotFound,
 		},
 	}
