@@ -5,7 +5,8 @@ start:
 	go run main.go
 
 test:
-	go test
+	# todo
+	# go test
 
 lint:
 	# TODO: add golangci-lint

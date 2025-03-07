@@ -18,7 +18,7 @@ func TestHandleWallet(t *testing.T) {
 		{
 			name: "Deposit money",
 			requestBody: WalletOperationRequest{
-				WalletID:      "wallet1",
+				WalletId:      "wallet1",
 				OperationType: Deposit,
 				Amount:        100.0,
 			},
@@ -28,7 +28,7 @@ func TestHandleWallet(t *testing.T) {
 		{
 			name: "Withdraw money",
 			requestBody: WalletOperationRequest{
-				WalletID:      "wallet1",
+				WalletId:      "wallet1",
 				OperationType: Withdraw,
 				Amount:        50.0,
 			},
@@ -38,7 +38,7 @@ func TestHandleWallet(t *testing.T) {
 		{
 			name: "Withdraw more than balance",
 			requestBody: WalletOperationRequest{
-				WalletID:      "wallet1",
+				WalletId:      "wallet1",
 				OperationType: Withdraw,
 				Amount:        100.0,
 			},
@@ -47,7 +47,7 @@ func TestHandleWallet(t *testing.T) {
 		{
 			name: "Invalid operation type",
 			requestBody: WalletOperationRequest{
-				WalletID:      "wallet1",
+				WalletId:      "wallet1",
 				OperationType: "INVALID",
 				Amount:        50.0,
 			},
@@ -91,26 +91,26 @@ func TestHandleGetWallet(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		walletID        string
+		WalletId        string
 		expectedStatus  int
 		expectedBalance float64
 	}{
 		{
 			name:            "Get existing wallet",
-			walletID:        "wallet1",
+			WalletId:        "wallet1",
 			expectedStatus:  http.StatusOK,
 			expectedBalance: 100.0,
 		},
 		{
 			name:           "Get non-existing wallet",
-			walletID:       "wallet2",
+			WalletId:       "wallet2",
 			expectedStatus: http.StatusNotFound,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req, err := http.NewRequest(http.MethodGet, "/api/v1/wallets/"+tt.walletID, nil)
+			req, err := http.NewRequest(http.MethodGet, "/api/v1/wallets/"+tt.WalletId, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
