@@ -7,6 +7,9 @@ start:
 test:
 	go test
 
+lint:
+	# TODO: add golangci-lint
+
 build:
 	go build -o wallets_api .
 
