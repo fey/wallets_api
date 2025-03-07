@@ -33,6 +33,3 @@ compose-production-build:
 
 compose-production-start:
 	docker compose -f docker-compose.production.yml up --abort-on-container-failure --build
-
-docker-start:
-	docker run --rm --name wallets_api -p 8080:8080 fey/wallets_api

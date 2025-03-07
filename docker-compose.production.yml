@@ -1,6 +1,6 @@
 services:
   app:
-    image: fey/wallets_api
+    image: ghcr.io/fey/wallets_api
     build:
       context: .
       dockerfile: Dockerfile.production
