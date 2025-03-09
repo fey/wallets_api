@@ -12,6 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
 	_ "github.com/lib/pq"
+	"github.com/google/uuid"
 )
 
 type (
@@ -82,15 +83,10 @@ func main() {
 //	@Success		200	{string}	string	"Hello, World!"
 //	@Router			/ [get]
 func RootHandler(c *fiber.Ctx) error {
-
-		var greeting string
-		err := db.QueryRow("SELECT 'Hello, World!'").Scan(&greeting)
-		if err != nil {
-			return err
-		}
-
-		return c.SendString(greeting)
-	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "/",
+	});
+}
 
 //	@Summary		Get wallet by UUID
 //	@Description	Retrieve a wallet's details using its UUID
@@ -103,10 +99,21 @@ func RootHandler(c *fiber.Ctx) error {
 //	@Failure		500		{object}	string	"Internal server error"
 //	@Router			/api/v1/wallets/{uuid} [get]
 func GetWalletHandler(ctx *fiber.Ctx) error {
-	uuid := ctx.Params("uuid", "")
+	uuidParam := ctx.Params("uuid", "")
+
+	if _, err := uuid.Parse(uuidParam); err != nil {
+		uuidError := ValidationError{
+			Field: "uuid",
+			Tag: "invalid",
+			Value: uuidParam,
+		}
+		return ctx.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"errors": []ValidationError{uuidError},
+		})
+	}
 
 	var wallet Wallet
-	row := db.QueryRow("SELECT id, balance FROM wallets WHERE id = $1", uuid)
+	row := db.QueryRow("SELECT id, balance FROM wallets WHERE id = $1", uuidParam)
 
 	err := row.Scan(&wallet.WalletId, &wallet.Balance)
 

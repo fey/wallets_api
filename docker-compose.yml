@@ -7,18 +7,21 @@ services:
       - "8080:8080"
     command: air
     environment:
-      DATABASE_URL: postgres://postgres:password@db:5432/postgres?sslmode=disable
+      DATABASE_URL: postgres://wallets_api:password@db:5432/wallets_api_dev?sslmode=disable
+      TEST_DATABASE_URL: postgres://wallets_api:password@test_db:5432/wallets_api_test?sslmode=disable
     volumes:
       - .:/app
+      - go_data:/go
     depends_on:
       - db
+      - test_db
 
   db:
     image: postgres:17.4-alpine3.21
     restart: always
     environment:
-      POSTGRES_DB: postgres
-      POSTGRES_USER: postgres
+      POSTGRES_DB: wallets_api_dev
+      POSTGRES_USER: wallets_api
       POSTGRES_PASSWORD: password
     volumes:
       - ./init.sql/:/docker-entrypoint-initdb.d/init.sql
@@ -26,5 +29,17 @@ services:
     ports:
       - 54321:5432
 
+  test_db:
+    image: postgres:17.4-alpine3.21
+    restart: always
+    environment:
+      POSTGRES_DB: wallets_api_test
+      POSTGRES_USER: wallets_api
+      POSTGRES_PASSWORD: password
+    volumes:
+      - testdb_data:/var/lib/postgresql/data
+
 volumes:
   db_data:
+  testdb_data:
+  go_data:

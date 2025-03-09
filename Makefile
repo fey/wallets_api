@@ -5,19 +5,22 @@ start:
 	go run main.go
 
 test:
-	go test
+	go test -v
 
 lint:
 	# TODO: add golangci-lint
 
 build:
-	go build -o wallets_api .
+	go build -buildvcs=false -o wallets_api .
 
 compose-start:
 	docker compose up --abort-on-container-failure
 
 compose-stop:
 	docker compose down
+
+compose-down:
+	docker compose down -v --remove-orphans
 
 compose-build:
 	docker compose build
@@ -29,7 +32,7 @@ compose-logs:
 	docker compose logs -f
 
 compose-test:
-	docker compose -f docker-compose.test.yml -f docker-compose.yml -p wallets_api-tests up
+	docker compose run --rm app make test
 
 compose-production-build:
 	docker compose -f docker-compose.production.yml build
