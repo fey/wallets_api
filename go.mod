@@ -1,6 +1,6 @@
 module github.com/fey/wallets_api
 
-go 1.24.1
+go 1.24
 
 require (
 	github.com/swaggo/http-swagger v1.3.4
