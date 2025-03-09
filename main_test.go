@@ -1,4 +1,4 @@
-package main_test
+package main
 
 import (
 	"bytes"
@@ -13,8 +13,6 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 )
-
-var db *sql.DB
 
 func setup() {
 	var err error
