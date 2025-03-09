@@ -27,17 +27,10 @@ jobs:
         with:
           go-version: '1.24.x'
       - name: setup config.env
-        run: |
-            touch config.env
-            echo DB_USER=$POSTGRES_USER >> config.env
-            echo DB_PASSWORD=$POSTGRES_PASSWORD >> 'config.env'
-            echo TEST_DB_HOST=postgres >> 'config.env'
-            echo DB_HOST=localhost >> 'config.env'
-            echo DB_PORT="5432" >> 'config.env'
-
+        run: cp config.env.example config.env
       - run: make install
       - run: make build
-      - run: make test
+      - run: make compose-test
 
   deploy:
     runs-on: ubuntu-latest
