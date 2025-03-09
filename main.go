@@ -4,6 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
+	"os"
+	"time"
+
 	_ "github.com/fey/wallets_api/docs"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
@@ -11,8 +15,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	"log"
-	"os"
 )
 
 type (
@@ -49,6 +51,9 @@ func connect() error {
 		log.Fatalf("error to load config.env: %v", err)
 	}
 	db, err = sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	db.SetMaxOpenConns(100)
+	db.SetMaxIdleConns(50)
+	db.SetConnMaxLifetime(time.Minute * 5)
 	if err != nil {
 		return err
 	}
@@ -79,29 +84,12 @@ func main() {
 	log.Fatal(app.Listen(":8080"))
 }
 
-// @Summary		Root endpoint
-// @Description	Returns a greeting message
-// @Tags			root
-// @Accept			json
-// @Produce		json
-// @Success		200	{string}	string	"Hello, World!"
-// @Router			/ [get]
 func RootHandler(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "/",
 	})
 }
 
-// @Summary		Get wallet by UUID
-// @Description	Retrieve a wallet's details using its UUID
-// @Tags			wallets
-// @Accept			json
-// @Produce		json
-// @Param			uuid	path		string	true	"Wallet UUID"
-// @Success		200		{object}	Wallet	"Wallet details"
-// @Failure		404		{object}	string	"Wallet not found"
-// @Failure		500		{object}	string	"Internal server error"
-// @Router			/api/v1/wallets/{uuid} [get]
 func GetWalletHandler(ctx *fiber.Ctx) error {
 	uuidParam := ctx.Params("uuid", "")
 
@@ -170,18 +158,24 @@ func WalletOperationHandler(ctx *fiber.Ctx) error {
 		}
 		return ctx.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
 
 	if req.OperationType == Deposit {
-		_, err := db.Exec("UPDATE wallets SET balance = balance + $1  WHERE id = $2", req.Amount, req.WalletId)
+		_, err := tx.Exec("UPDATE wallets SET balance = balance + $1  WHERE id = $2", req.Amount, req.WalletId)
 		if err != nil {
+			tx.Rollback()
 			return err
 		}
 		wallet.Balance += req.Amount
 	}
 
 	if req.OperationType == Withdraw {
-		_, err := db.Exec("UPDATE wallets SET balance = balance - $1  WHERE id = $2", req.Amount, req.WalletId)
+		_, err := tx.Exec("UPDATE wallets SET balance = balance - $1  WHERE id = $2", req.Amount, req.WalletId)
 		if err != nil {
+			tx.Rollback()
 			return err
 		}
 
@@ -192,7 +186,7 @@ func WalletOperationHandler(ctx *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-
+	tx.Commit()
 	return ctx.JSON(wallet)
 }
 

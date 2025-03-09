@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
-
+	"github.com/joho/godotenv"
 	"github.com/gofiber/fiber/v2"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
@@ -16,9 +18,26 @@ import (
 
 func setup() {
 	var err error
-	db, err = sql.Open("postgres", os.Getenv("TEST_DATABASE_URL"))
+	// Получаем переменные окружения
+	err = godotenv.Load("config.env")
+	user := os.Getenv("DB_USER")
+	password := os.Getenv("DB_PASSWORD")
+	dbname := os.Getenv("DB_NAME")
+	host := os.Getenv("DB_HOST")
+	port := os.Getenv("DB_PORT")
+
+	// Формируем строку подключения
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
+
+	db, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
 		panic(err)
+	}
+
+	err = db.Ping()
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	// Выполняем SQL-запросы из файла init.sql
