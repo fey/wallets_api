@@ -5,8 +5,7 @@ start:
 	go run main.go
 
 test:
-	# todo
-	# go test
+	go test
 
 lint:
 	# TODO: add golangci-lint
@@ -30,7 +29,7 @@ compose-logs:
 	docker compose logs -f
 
 compose-test:
-	docker compose run --rm app make test
+	docker compose -f docker-compose.test.yml -f docker-compose.yml -p wallets_api-tests up
 
 compose-production-build:
 	docker compose -f docker-compose.production.yml build

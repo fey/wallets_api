@@ -104,9 +104,6 @@ func RootHandler(c *fiber.Ctx) error {
 //	@Router			/api/v1/wallets/{uuid} [get]
 func GetWalletHandler(ctx *fiber.Ctx) error {
 	uuid := ctx.Params("uuid", "")
-	if uuid == "" {
-		return ctx.SendStatus(fiber.StatusNotFound)
-	}
 
 	var wallet Wallet
 	row := db.QueryRow("SELECT id, balance FROM wallets WHERE id = $1", uuid)
