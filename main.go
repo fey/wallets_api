@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	_ "github.com/fey/wallets_api/docs"
@@ -14,6 +15,7 @@ import (
 	"github.com/gofiber/swagger"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 )
 
@@ -57,7 +59,6 @@ func connect() error {
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
 
-	// Формируем строку подключения
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
 
@@ -169,36 +170,55 @@ func WalletOperationHandler(ctx *fiber.Ctx) error {
 		}
 		return ctx.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-
-	if req.OperationType == Deposit {
-		_, err := tx.Exec("UPDATE wallets SET balance = balance + $1  WHERE id = $2", req.Amount, req.WalletId)
+	const maxRetries = 3
+	for i := 0; i < maxRetries; i++ {
+		tx, err := db.Begin()
 		if err != nil {
-			tx.Rollback()
 			return err
 		}
-		wallet.Balance += req.Amount
-	}
+		defer tx.Rollback() // Откат транзакции, если не будет явного коммита
 
-	if req.OperationType == Withdraw {
-		_, err := tx.Exec("UPDATE wallets SET balance = balance - $1  WHERE id = $2", req.Amount, req.WalletId)
+		if req.OperationType == Deposit {
+			row := tx.QueryRow("UPDATE wallets SET balance = balance + $1 WHERE id = $2 RETURNING balance", req.Amount, req.WalletId)
+			if err := row.Scan(&wallet.Balance); err != nil {
+				return err
+			}
+		} else if req.OperationType == Withdraw {
+			row := tx.QueryRow("UPDATE wallets SET balance = balance - $1 WHERE id = $2 RETURNING balance", req.Amount, req.WalletId)
+			if err := row.Scan(&wallet.Balance); err != nil {
+				return err
+			}
+		}
+
+		_, err = tx.Exec("INSERT INTO transactions(wallet_id, operation_type, amount) VALUES($1, $2, $3)", req.WalletId, req.OperationType, req.Amount)
 		if err != nil {
-			tx.Rollback()
 			return err
 		}
 
-		wallet.Balance -= req.Amount
+		if err := tx.Commit(); err != nil {
+			if isDeadlock(err) {
+				continue
+			}
+			return err
+		}
+
+		break
 	}
 
-	_, err = tx.Exec("INSERT INTO transactions(wallet_id, operation_type, amount) VALUES($1, $2, $3)", req.WalletId, req.OperationType, req.Amount)
-	if err != nil {
-		return err
-	}
-	tx.Commit()
 	return ctx.JSON(wallet)
+}
+
+func isDeadlock(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	const pgDeadlockCode = "40001"
+	if pqErr, ok := err.(*pq.Error); ok {
+		return pqErr.Code == pgDeadlockCode // Код ошибки для дедлока
+	}
+
+	return strings.Contains(err.Error(), "deadlock detected")
 }
 
 func validateWalletOperation(req WalletOperationRequest) []*ValidationError {

@@ -5,15 +5,15 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/gofiber/fiber/v2"
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
+	"github.com/stretchr/testify/assert"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
-	"github.com/joho/godotenv"
-	"github.com/gofiber/fiber/v2"
-	_ "github.com/lib/pq"
-	"github.com/stretchr/testify/assert"
 )
 
 func setup() {

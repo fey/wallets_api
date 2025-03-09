@@ -10,6 +10,11 @@ test:
 lint:
 	# TODO: add golangci-lint
 
+prepare-config:
+	cp config.env.example config.env
+
+compose-setup: prepare-config compose-build
+
 test-load:
 	# TODO
 	# ./k6 load_test.js
