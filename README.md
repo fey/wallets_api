@@ -22,8 +22,17 @@ docker run \
     --rm \
     --name wallets_api \
     -p 8080:8080 \
+    -v ($pwd)/path/to/config:/app/config.env
     ghcr.io/fey/wallets_api
 ```
+
+_config.env_ file example:
+
+```dotenv
+DATABASE_URL=postgres://wallets_api:password@db:5432/wallets_api_dev?sslmode=disable
+```
+
+For Docker Compose see [Makefile](./Makefile)
 
 ### Operations
 

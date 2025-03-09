@@ -4,15 +4,15 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
-	"os"
-
 	_ "github.com/fey/wallets_api/docs"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
-	_ "github.com/lib/pq"
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
+	"log"
+	"os"
 )
 
 type (
@@ -44,6 +44,10 @@ var db *sql.DB
 
 func connect() error {
 	var err error
+	err = godotenv.Load("config.env")
+	if err != nil {
+		log.Fatalf("error to load config.env: %v", err)
+	}
 	db, err = sql.Open("postgres", os.Getenv("DATABASE_URL"))
 	if err != nil {
 		return err
@@ -55,11 +59,11 @@ func connect() error {
 	return nil
 }
 
-//	@title			Wallet API
-//	@version		1.0
-//	@description	API для управления кошельками
-//	@host			localhost:8080
-//	@BasePath		/api/v1
+// @title			Wallet API
+// @version		1.0
+// @description	API для управления кошельками
+// @host			localhost:8080
+// @BasePath		/api/v1
 func main() {
 	if err := connect(); err != nil {
 		log.Fatal(err)
@@ -75,36 +79,36 @@ func main() {
 	log.Fatal(app.Listen(":8080"))
 }
 
-//	@Summary		Root endpoint
-//	@Description	Returns a greeting message
-//	@Tags			root
-//	@Accept			json
-//	@Produce		json
-//	@Success		200	{string}	string	"Hello, World!"
-//	@Router			/ [get]
+// @Summary		Root endpoint
+// @Description	Returns a greeting message
+// @Tags			root
+// @Accept			json
+// @Produce		json
+// @Success		200	{string}	string	"Hello, World!"
+// @Router			/ [get]
 func RootHandler(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "/",
-	});
+	})
 }
 
-//	@Summary		Get wallet by UUID
-//	@Description	Retrieve a wallet's details using its UUID
-//	@Tags			wallets
-//	@Accept			json
-//	@Produce		json
-//	@Param			uuid	path		string	true	"Wallet UUID"
-//	@Success		200		{object}	Wallet	"Wallet details"
-//	@Failure		404		{object}	string	"Wallet not found"
-//	@Failure		500		{object}	string	"Internal server error"
-//	@Router			/api/v1/wallets/{uuid} [get]
+// @Summary		Get wallet by UUID
+// @Description	Retrieve a wallet's details using its UUID
+// @Tags			wallets
+// @Accept			json
+// @Produce		json
+// @Param			uuid	path		string	true	"Wallet UUID"
+// @Success		200		{object}	Wallet	"Wallet details"
+// @Failure		404		{object}	string	"Wallet not found"
+// @Failure		500		{object}	string	"Internal server error"
+// @Router			/api/v1/wallets/{uuid} [get]
 func GetWalletHandler(ctx *fiber.Ctx) error {
 	uuidParam := ctx.Params("uuid", "")
 
 	if _, err := uuid.Parse(uuidParam); err != nil {
 		uuidError := ValidationError{
 			Field: "uuid",
-			Tag: "invalid",
+			Tag:   "invalid",
 			Value: uuidParam,
 		}
 		return ctx.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
@@ -129,17 +133,17 @@ func GetWalletHandler(ctx *fiber.Ctx) error {
 	return ctx.SendString(string(jsonBytes))
 }
 
-//	@Summary		Perform wallet operation
-//	@Description	Deposit or withdraw an amount from a wallet
-//	@Tags			wallets
-//	@Accept			json
-//	@Produce		json
-//	@Param			request	body		WalletOperationRequest	true	"Wallet operation request"
-//	@Success		200		{object}	Wallet					"Updated wallet details"
-//	@Failure		422		{object}	[]ValidationError		"Validation errors"
-//	@Failure		404		{object}	string					"Wallet not found"
-//	@Failure		500		{object}	string					"Internal server error"
-//	@Router			/api/v1/wallets [post]
+// @Summary		Perform wallet operation
+// @Description	Deposit or withdraw an amount from a wallet
+// @Tags			wallets
+// @Accept			json
+// @Produce		json
+// @Param			request	body		WalletOperationRequest	true	"Wallet operation request"
+// @Success		200		{object}	Wallet					"Updated wallet details"
+// @Failure		422		{object}	[]ValidationError		"Validation errors"
+// @Failure		404		{object}	string					"Wallet not found"
+// @Failure		500		{object}	string					"Internal server error"
+// @Router			/api/v1/wallets [post]
 func WalletOperationHandler(ctx *fiber.Ctx) error {
 	var req WalletOperationRequest
 
