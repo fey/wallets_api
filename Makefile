@@ -10,6 +10,10 @@ test:
 lint:
 	# TODO: add golangci-lint
 
+test-load:
+	# TODO
+	# ./k6 load_test.js
+
 build:
 	go build -buildvcs=false -o wallets_api .
 

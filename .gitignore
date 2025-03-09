@@ -3,3 +3,4 @@ tmp
 docs
 vendor
 config.env
+k6

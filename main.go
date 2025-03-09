@@ -193,7 +193,7 @@ func WalletOperationHandler(ctx *fiber.Ctx) error {
 		wallet.Balance -= req.Amount
 	}
 
-	_, err = db.Exec("INSERT INTO transactions(wallet_id, operation_type, amount) VALUES($1, $2, $3)", req.WalletId, req.OperationType, req.Amount)
+	_, err = tx.Exec("INSERT INTO transactions(wallet_id, operation_type, amount) VALUES($1, $2, $3)", req.WalletId, req.OperationType, req.Amount)
 	if err != nil {
 		return err
 	}
